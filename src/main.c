@@ -15,52 +15,57 @@
    along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <complex.h>
 #include <tgmath.h>
 
 void print_c(double complex c);
-int op(double complex z_0, int iterations);
+int escape(double complex z_0, int iterations);
 
 void print_c(double complex c)
 {
      printf("%.5f%+.5fi\n", creal(c), cimag(c));
 }
 
-int op(double complex z_0, int iterations)
+int escape(double complex z_0, int iterations)
 {
     int i = 0;
     int x_squared, y_squared;
     double complex n = z_0;
+
+    if (z_0 == 0) {
+        return false;
+    }
 
     do {
         x_squared = creal(n) * creal(n);
         y_squared = cimag(n) * cimag(n);
 
         n = (n*n + z_0);
-    } while ((x_squared + y_squared <= 4) && (i++ < iterations));
+    } while ((x_squared + y_squared <= 4) && (++i < iterations));
 
-    return i;
+    return (i != iterations);
 }
 
 int main(void)
 {
     int i;
-    int ret;
-    const int iter = 10;
+    int escape_success;
+    const int iter = 1000;
 
-    double complex tests[] = {0, 1};
+    double complex tests[] = {1, 0};
     double complex j;
 
     for (i = 0; i < 2; ++i) {
         j = tests[i];
 
-        ret = op(j, iter);
+        escape_success = escape(j, iter);
         print_c(j);
 
-        if (ret - 1 == iter) {
-            puts("Did not escape");
-        } else {
+        if (escape_success) {
             puts("Escaped");
+        } else {
+            puts("Did not escape");
         }
 
         puts("");

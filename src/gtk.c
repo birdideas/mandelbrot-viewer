@@ -2,13 +2,20 @@
 #include <cairo.h>
 #include <stdint.h>
 
-#define WIDTH  400
-#define HEIGHT 300
+#define WIDTH  1920
+#define HEIGHT 1080
 
 // We'll keep an in-memory pixel buffer (ARGB32 format)
 static uint32_t pixels[WIDTH * HEIGHT];
 
-static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data) {
+static gboolean on_draw
+(
+    __attribute__((unused)) GtkWidget *widget,
+    cairo_t *cr,
+    __attribute__((unused)) gpointer data
+)
+{
+
     // Create a Cairo image surface from our pixel buffer
     cairo_surface_t *surface = cairo_image_surface_create_for_data(
         (unsigned char *)pixels,
@@ -25,7 +32,8 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data) {
     return FALSE;
 }
 
-static void set_pixel(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
+static void set_pixel(int x, int y, uint8_t r, uint8_t g, uint8_t b)
+{
     if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT)
         return;
     // ARGB format — alpha = 255
@@ -33,7 +41,13 @@ static void set_pixel(int x, int y, uint8_t r, uint8_t g, uint8_t b) {
     pixels[y * WIDTH + x] = color;
 }
 
-static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpointer user_data) {
+static gboolean on_button_press
+(
+    GtkWidget *widget,
+    GdkEventButton *event,
+    __attribute__((unused)) gpointer user_data
+)
+{
     int x = (int)event->x;
     int y = (int)event->y;
 
@@ -50,32 +64,21 @@ static gboolean on_button_press(GtkWidget *widget, GdkEventButton *event, gpoint
     return TRUE;  // event handled
 }
 
-static void init_pixels(void) {
-    // Fill background black
-    for (int i = 0; i < WIDTH * HEIGHT; i++)
+static void init_pixels(void)
+{
+    // Fill background white
+    for (int i = 0; i < WIDTH * HEIGHT; i++) {
         pixels[i] = 0xFF000000;
-
-    // Example: set some pixels in code
-    for (int y = 50; y < 250; y++) {
-        for (int x = 100; x < 300; x++) {
-            // Create a gradient color
-            uint8_t r = x % 256;
-            uint8_t g = y % 256;
-            uint8_t b = (x + y) % 256;
-            set_pixel(x, y, r, g, b);
-        }
     }
-
-    // A red diagonal line
-    for (int i = 0; i < 200; i++)
-        set_pixel(i, i, 255, 0, 0);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     gtk_init(&argc, &argv);
 
     GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     GtkWidget *drawing_area = gtk_drawing_area_new();
+
     gtk_widget_set_size_request(drawing_area, WIDTH, HEIGHT);
 
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
@@ -84,6 +87,8 @@ int main(int argc, char *argv[]) {
 
     gtk_widget_add_events(drawing_area, GDK_BUTTON_PRESS_MASK);
     gtk_container_add(GTK_CONTAINER(window), drawing_area);
+
+    gtk_window_maximize(GTK_WINDOW(window));
 
     init_pixels();  // set pixel data before drawing
 
