@@ -96,7 +96,7 @@ int escape(double complex z_0, int iterations)
     double x_old = 0, y_old = 0;
     int period = 0;
     int period_steps = 10;
-    double period_tolerance = 0.05;
+    double period_tolerance = 0.01;
 
     /* Return the number of iterations to signal
      * that the number zero did NOT escape */

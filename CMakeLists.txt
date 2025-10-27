@@ -5,6 +5,7 @@ cmake_minimum_required(VERSION 3.25.1)
 project(mandelbrot-viewer)
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE main.c)
+set_source_files_properties(main.c PROPERTIES COMPILE_OPTIONS "-g;-Wall;-Wextra;-pedantic;-Wstrict-prototypes;-Werror;-O3")
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTK REQUIRED gtk4)
