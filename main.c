@@ -23,24 +23,21 @@
 
 /* TODO:
  * Allow for reloading the image without recompiling the program.
- * Global variables bad
  * Why are all the colors blue?
  * Check if periodicity check is being called
+ * Threading
  */
 
 #define WIDTH  1000
 #define HEIGHT 1000
 
-static uint32_t pixels[WIDTH * HEIGHT];
-static GtkWidget *drawing_area = NULL;
-
-static void init_pixels(void)
+static void init_pixels(uint32_t *pixels)
 {
     for (int i = 0; i < WIDTH * HEIGHT; i++)
-        pixels[i] = 0xFFFF0000;
+        pixels[i] = 0xFF000000;
 }
 
-static void set_pixel(int x, int y, uint8_t r, uint8_t g, uint8_t b)
+static void set_pixel(uint32_t *pixels, int x, int y, uint8_t r, uint8_t g, uint8_t b)
 {
     if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
         return;
@@ -49,13 +46,14 @@ static void set_pixel(int x, int y, uint8_t r, uint8_t g, uint8_t b)
     pixels[y * WIDTH + x] = (0xFF << 24) | (r << 16) | (g << 8) | b;
 }
 
-static void on_draw(__attribute__((unused)) GtkDrawingArea *area, cairo_t *cr,
+static void on_draw(__attribute__((unused)) GtkDrawingArea *area,
+                    cairo_t *cr,
                     __attribute__((unused)) int width,
                     __attribute__((unused)) int height,
-                    __attribute__((unused)) gpointer data)
+                    gpointer data)
 {
     cairo_surface_t *surface = cairo_image_surface_create_for_data(
-        (unsigned char *)pixels,
+        (unsigned char *)data,
         CAIRO_FORMAT_ARGB32,
         WIDTH, HEIGHT,
         WIDTH * 4
@@ -128,7 +126,7 @@ int escape(double complex z_0, int iterations)
     return i;
 }
 
-void mandelbrot_initial_loop(void)
+void render_frame(uint32_t *pixels)
 {
     int width = WIDTH, height = HEIGHT;
     double x, y;
@@ -143,7 +141,7 @@ void mandelbrot_initial_loop(void)
     int c;
     
     double complex j;
-    const int iter = 1000;
+    const int iter = 25;
 
     for (y = y_min, y_pix = 0; y < y_max; y += dy, ++y_pix) {
         for (x = x_min, x_pix = 0; x < x_max; x += dx, ++x_pix) {
@@ -154,9 +152,9 @@ void mandelbrot_initial_loop(void)
             escape_success = (steps != iter);
 
             if (escape_success) {
-                set_pixel(x_pix, y_pix, (c & 0x00FF0000)>>15, (c & 0x0000FF00)>>7, c & 0x000000FF);
+                set_pixel(pixels, x_pix, y_pix, (c & 0x00FF0000)>>15, (c & 0x0000FF00)>>7, c & 0x000000FF);
             } else {
-                set_pixel(x_pix, y_pix, 0, 0, 0);
+                set_pixel(pixels, x_pix, y_pix, 0, 0, 0);
             }
         }
     }
@@ -168,7 +166,10 @@ static void activate
     __attribute__((unused)) gpointer user_data
 )
 {
-    init_pixels();
+    static GtkWidget *drawing_area = NULL;
+    static uint32_t pixels[WIDTH * HEIGHT];
+
+    init_pixels(pixels);
 
     GtkWidget *window = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(window), "Mandelbrot");
@@ -177,17 +178,17 @@ static void activate
     drawing_area = gtk_drawing_area_new();
     gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(drawing_area), WIDTH);
     gtk_drawing_area_set_content_height(GTK_DRAWING_AREA(drawing_area), HEIGHT);
-    gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(drawing_area), on_draw, NULL, NULL);
+    gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(drawing_area), on_draw, pixels, NULL);
 
-    // Add click handler
-    GtkGesture *click = gtk_gesture_click_new();
+    /* Add click handler */
+    /* GtkGesture *click = gtk_gesture_click_new(); */
     /* g_signal_connect(click, "pressed", G_CALLBACK(on_click), NULL); */
-    gtk_widget_add_controller(drawing_area, GTK_EVENT_CONTROLLER(click));
+    /* gtk_widget_add_controller(drawing_area, GTK_EVENT_CONTROLLER(click)); */
 
     gtk_window_set_child(GTK_WINDOW(window), drawing_area);
 
     /* gtk_window_fullscreen(GTK_WINDOW(window)); */
-    mandelbrot_initial_loop();
+    render_frame(pixels);
     gtk_widget_show(window);
 }
 
