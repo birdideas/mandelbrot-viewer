@@ -16,7 +16,6 @@
 
 /* #include <stdio.h> */
 #include <gtk/gtk.h>
-#include <time.h>
 #include <math.h>
 #include <complex.h>
 #include <tgmath.h>
@@ -30,6 +29,13 @@
 
 #define WIDTH  1000
 #define HEIGHT 1000
+
+struct WidgetHolder {
+    uint32_t *pixels;
+    GtkWidget *drawing_area;
+
+    float x, y;
+};
 
 static void init_pixels(uint32_t *pixels)
 {
@@ -58,15 +64,9 @@ static void on_draw(__attribute__((unused)) GtkDrawingArea *area,
         WIDTH, HEIGHT,
         WIDTH * 4
     );
-    unsigned int t;
-    char str[23];
 
     cairo_set_source_surface(cr, surface, 0, 0);
     cairo_paint(cr);
-
-    t = time(NULL);
-    snprintf(str, 23, "images/%d.png", t);
-    cairo_surface_write_to_png(surface, str);
 
     cairo_surface_destroy(surface);
 }
@@ -126,22 +126,24 @@ int escape(double complex z_0, int iterations)
     return i;
 }
 
-void render_frame(uint32_t *pixels)
+void render_frame(uint32_t *pixels, double x_min, double y_min, double x_max, double y_max)
 {
     int width = WIDTH, height = HEIGHT;
     double x, y;
     int x_pix, y_pix;
-    double x_min = -2, y_min = -2;
-    double x_max = 2,  y_max = 2;
+    /* double x_min = -2, y_min = -2;
+    double x_max = 2,  y_max = 2; */
     double dx = fabs(x_max - x_min) / width;
     double dy = fabs(y_max - y_min) / height;
+
+    printf("(%f, %f)\n", dx, dy);
 
     int escape_success;
     int steps;
     int c;
     
     double complex j;
-    const int iter = 25;
+    const int iter = 1000;
 
     for (y = y_min, y_pix = 0; y < y_max; y += dy, ++y_pix) {
         for (x = x_min, x_pix = 0; x < x_max; x += dx, ++x_pix) {
@@ -160,14 +162,54 @@ void render_frame(uint32_t *pixels)
     }
 }
 
+inline float new_limits(float old_limit)
+{
+    return (old_limit - 500) / 250;
+}
+
+static gboolean zoom_loop(gpointer data)
+{
+    struct WidgetHolder *z = (struct WidgetHolder *) data;
+    static int delta = 450;
+
+    render_frame(z->pixels,
+                new_limits(z->x - delta), new_limits(z->y - delta),
+                new_limits(z->x + delta), new_limits(z->y + delta));
+    gtk_widget_queue_draw((GtkWidget *) z->drawing_area);
+
+    delta -= 10;
+    if (delta <= 0) {
+        g_print("Zoom done\n");
+        return 0;
+    }
+
+    return 1;
+}
+
+static void on_click(__attribute__((unused)) GtkGestureClick *gesture,
+        __attribute__((unused)) int n_press,
+        double x, double y,
+        gpointer user_data)
+{
+    struct WidgetHolder *zoom_holder = (struct WidgetHolder *) user_data;
+    zoom_holder->x = x;
+    zoom_holder->y = y;
+
+    g_timeout_add(100, zoom_loop, zoom_holder);
+}
+
 static void activate
 (
     GtkApplication *app,
     __attribute__((unused)) gpointer user_data
 )
 {
-    static GtkWidget *drawing_area = NULL;
     static uint32_t pixels[WIDTH * HEIGHT];
+    static GtkWidget *drawing_area = NULL;
+
+    struct WidgetHolder *cb_data = g_new0(struct WidgetHolder, 1);
+    cb_data->pixels = pixels;
+    /* g_free(cb_data); */
 
     init_pixels(pixels);
 
@@ -176,19 +218,20 @@ static void activate
     gtk_window_set_default_size(GTK_WINDOW(window), WIDTH, HEIGHT);
 
     drawing_area = gtk_drawing_area_new();
+    cb_data->drawing_area = drawing_area;
     gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(drawing_area), WIDTH);
     gtk_drawing_area_set_content_height(GTK_DRAWING_AREA(drawing_area), HEIGHT);
     gtk_drawing_area_set_draw_func(GTK_DRAWING_AREA(drawing_area), on_draw, pixels, NULL);
 
     /* Add click handler */
-    /* GtkGesture *click = gtk_gesture_click_new(); */
-    /* g_signal_connect(click, "pressed", G_CALLBACK(on_click), NULL); */
-    /* gtk_widget_add_controller(drawing_area, GTK_EVENT_CONTROLLER(click)); */
+    GtkGesture *click = gtk_gesture_click_new();
+    g_signal_connect(click, "pressed", G_CALLBACK(on_click), cb_data);
+    gtk_widget_add_controller(drawing_area, GTK_EVENT_CONTROLLER(click));
 
     gtk_window_set_child(GTK_WINDOW(window), drawing_area);
 
     /* gtk_window_fullscreen(GTK_WINDOW(window)); */
-    render_frame(pixels);
+    render_frame(pixels, -2, -2, 2, 2);
     gtk_widget_show(window);
 }
 
